@@ -8,9 +8,11 @@ const router = express.Router();
 router.get('/stats', protect, async (req, res) => {
     try {
         const userId = req.user._id;
+        console.log('Fetching stats for user:', userId); // Debug log
 
-        // Fetch all feedback for the user
+        // Fetch all feedback for the user only
         const feedbacks = await Feedback.find({ user: userId }).sort({ createdAt: -1 });
+        console.log(`Found ${feedbacks.length} feedback records for this user`); // Debug log
 
         if (!feedbacks || feedbacks.length === 0) {
             return res.json({

@@ -7,6 +7,7 @@ const Feedback = () => {
   const [feedback, setFeedback] = useState(null);
   const [role, setRole] = useState('Interview');
   const [loading, setLoading] = useState(true);
+  const [savingScore, setSavingScore] = useState(false);
 
   useEffect(() => {
     const savedState = sessionStorage.getItem('prepify_feedback');
@@ -20,6 +21,9 @@ const Feedback = () => {
         'prepify_feedback',
         JSON.stringify({ feedback: location.state.feedback, role: location.state.role || 'Interview' })
       );
+      
+      // Auto-save score to backend
+      saveScoreToBackend(location.state.feedback, location.state.role || 'Interview');
     } else if (persisted?.feedback) {
       console.log('Feedback from sessionStorage:', persisted.feedback);
       setFeedback(persisted.feedback);
@@ -29,6 +33,44 @@ const Feedback = () => {
     }
     setLoading(false);
   }, [location.state]);
+
+  const saveScoreToBackend = async (feedbackData, interviewRole) => {
+    try {
+      setSavingScore(true);
+      const token = localStorage.getItem('authToken');
+
+      if (!token) {
+        console.warn('No auth token found. Cannot save score.');
+        return;
+      }
+
+      const score = feedbackData?.overall_rating || 0;
+
+      const response = await fetch('http://localhost:3000/api/feedback', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          role: interviewRole,
+          averageScore: score,
+          feedback: feedbackData
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Score saved successfully:', result);
+      } else {
+        console.error('Failed to save score. Status:', response.status);
+      }
+    } catch (error) {
+      console.error('Error saving score to backend:', error);
+    } finally {
+      setSavingScore(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -58,6 +100,14 @@ const Feedback = () => {
 
   return (
     <div className="p-6 space-y-6 bg-gray-50 min-h-screen">
+      {/* Score Save Status */}
+      {savingScore && (
+        <div className="rounded-lg bg-blue-50 border border-blue-200 p-4 flex items-center gap-3">
+          <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+          <span className="text-sm font-medium text-blue-700">Saving your score...</span>
+        </div>
+      )}
+
       {/* Overall Results Card */}
       <div className="rounded-3xl border border-gray-200 bg-white p-8 shadow-sm">
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">

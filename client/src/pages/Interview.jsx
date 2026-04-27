@@ -469,9 +469,13 @@ export default function Interview() {
 
       const numericScore = Number(feedbackData?.overall_rating);
       if (!Number.isNaN(numericScore)) {
-        fetch('http://localhost:3001/api/feedback', {
+        const token = localStorage.getItem('authToken');
+        fetch('http://localhost:3000/api/feedback', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
           body: JSON.stringify({
             role: data.role || role,
             averageScore: numericScore,
