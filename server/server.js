@@ -7,6 +7,7 @@ const cors = require('cors');
 const authRoutes = require('./routes/authRoutes');
 const llmRoutes = require('./routes/llmResponseTest');
 const feedbackRoutes = require('./routes/feedbackRoutes');
+const userRoutes = require('./routes/userRoutes');
 
 
 // Middleware
@@ -28,6 +29,7 @@ app.get('/', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/llm', llmRoutes);
 app.use('/api/feedback', feedbackRoutes);
+app.use('/api/users', userRoutes);
 
 
 
