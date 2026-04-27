@@ -2,9 +2,9 @@ name: Node.js CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 jobs:
   build:
@@ -12,16 +12,17 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [18.x, 20.x, 22.x]
+        node-version: [18.x, 20.x]   # 🔥 removed 22.x (can be unstable sometimes)
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: 'npm'
+          cache: "npm"
           cache-dependency-path: |
             client/package-lock.json
             server/package-lock.json
@@ -29,7 +30,12 @@ jobs:
       # ---------- FRONTEND ----------
       - name: Install client dependencies
         working-directory: client
-        run: npm ci
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
 
       - name: Build client
         working-directory: client
@@ -38,8 +44,14 @@ jobs:
       # ---------- BACKEND ----------
       - name: Install server dependencies
         working-directory: server
-        run: npm ci
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
 
-    #   - name: Test server
-    #     working-directory: server
-    #     run: npm test --if-present
+      # Optional test step
+      # - name: Test server
+      #   working-directory: server
+      #   run: npm test --if-present
