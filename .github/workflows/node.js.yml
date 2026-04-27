@@ -12,7 +12,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [18.x, 20.x]   # 🔥 removed 22.x (can be unstable sometimes)
+        node-version: [18.x, 20.x]
 
     steps:
       - name: Checkout code
@@ -22,20 +22,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: "npm"
-          cache-dependency-path: |
-            client/package-lock.json
-            server/package-lock.json
+          # ❌ REMOVE cache lines completely
 
       # ---------- FRONTEND ----------
       - name: Install client dependencies
         working-directory: client
-        run: |
-          if [ -f package-lock.json ]; then
-            npm ci
-          else
-            npm install
-          fi
+        run: npm install
 
       - name: Build client
         working-directory: client
@@ -44,14 +36,4 @@ jobs:
       # ---------- BACKEND ----------
       - name: Install server dependencies
         working-directory: server
-        run: |
-          if [ -f package-lock.json ]; then
-            npm ci
-          else
-            npm install
-          fi
-
-      # Optional test step
-      # - name: Test server
-      #   working-directory: server
-      #   run: npm test --if-present
+        run: npm install
