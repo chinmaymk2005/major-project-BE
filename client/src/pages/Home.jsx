@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { Sparkles, Brain, Zap, Target, Users, TrendingUp } from "lucide-react";
+import { useEffect } from "react";
 
 export default function Home() {
   const navigate = useNavigate();
@@ -42,6 +43,12 @@ export default function Home() {
     { value: "95%", label: "Success Rate" },
     { value: "500+", label: "Interview Questions" },
   ];
+
+  useEffect(() => {
+    document.title = "Prepify - AI-Powered Mock Interview Platform";
+    localStorage.getItem("authToken") && navigate("/dashboard");
+  }, []);
+  
 
   return (
     <div className="min-h-screen bg-white">

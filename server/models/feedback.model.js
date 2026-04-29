@@ -7,6 +7,11 @@ const feedbackSchema = new mongoose.Schema(
       ref: 'User',
       required: false,
     },
+    interviewId: {
+      type: String,
+      sparse: true, // Allows multiple null values for backward compatibility
+      unique: true, // Ensures no duplicate interviews
+    },
     role: {
       type: String,
       required: false,

@@ -169,7 +169,7 @@ export default function Dashboard() {
               <h4 className="text-sm font-medium text-neutral-600">Average Score</h4>
               <Award className="w-5 h-5 text-orange-500" />
             </div>
-            <p className="text-3xl font-bold text-neutral-900">{stats?.averageScore || 0}%</p>
+            <p className="text-3xl font-bold text-neutral-900">{(stats?.averageScore || 0) * 10}%</p>
             <p className="text-xs text-neutral-500 mt-2">Across all interviews</p>
           </div>
 
@@ -187,7 +187,7 @@ export default function Dashboard() {
               <h4 className="text-sm font-medium text-neutral-600">Last Interview</h4>
               <Clock className="w-5 h-5 text-green-500" />
             </div>
-            <p className="text-3xl font-bold text-neutral-900">{stats?.lastScore || 0}%</p>
+            <p className="text-3xl font-bold text-neutral-900">{(stats?.lastScore || 0) * 10}%</p>
             <p className="text-xs text-neutral-500 mt-2">{stats?.lastInterviewDate || "No interviews yet"}</p>
           </div>
 
@@ -197,7 +197,7 @@ export default function Dashboard() {
               <TrendingUp className="w-5 h-5 text-purple-500" />
             </div>
             <p className="text-3xl font-bold text-green-600">
-              {stats?.totalInterviews > 1 ? `+${Math.max(0, stats.lastScore - stats.averageScore)}%` : "N/A"}
+              {stats?.totalInterviews > 1 ? `${(stats.lastScore - stats.averageScore) * 10}%` : "N/A"}
             </p>
             <p className="text-xs text-neutral-500 mt-2">From average</p>
           </div>

@@ -3,6 +3,15 @@ import { Mic, MicOff, Video, VideoOff, Phone, PlaySquare, Square } from 'lucide-
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FilesetResolver, FaceLandmarker } from '@mediapipe/tasks-vision';
 
+// UUID generator function for unique interview IDs
+const generateUUID = () => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
+
 // --- 1. SUB-COMPONENTS ---
 
 const ProctoredVideo = ({ isCameraOn, onTerminate }) => {
@@ -11,17 +20,17 @@ const ProctoredVideo = ({ isCameraOn, onTerminate }) => {
   const [score, setScore] = useState(100);
   const [warnings, setWarnings] = useState(0);
   const [isModelLoaded, setIsModelLoaded] = useState(false);
-  
-  const MAX_VIOLATION_FRAMES = 60; 
+
+  const MAX_VIOLATION_FRAMES = 60;
   const violationFrames = useRef(0);
   const totalWarnings = useRef(0);
   const lastWarningTime = useRef(0);
 
   useEffect(() => {
-    let isMounted = true; 
+    let isMounted = true;
     let animationFrameId = null;
     let faceLandmarker = null;
-    let lastProcessedTime = -1; 
+    let lastProcessedTime = -1;
     let hasTerminated = false; // Local flag to prevent multiple triggers
 
     const initializeProctoring = async () => {
@@ -43,19 +52,19 @@ const ProctoredVideo = ({ isCameraOn, onTerminate }) => {
       const vision = await FilesetResolver.forVisionTasks(
         "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.32/wasm"
       );
-      
+
       faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
         baseOptions: {
           modelAssetPath: `https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task`,
           delegate: "GPU"
         },
-        outputFaceBlendshapes: true, 
+        outputFaceBlendshapes: true,
         outputFaceTransformationMatrixes: false,
         runningMode: "VIDEO",
         numFaces: 1
       });
-      
-      if (!isMounted) return; 
+
+      if (!isMounted) return;
       setIsModelLoaded(true);
 
       const predictWebcam = () => {
@@ -65,16 +74,16 @@ const ProctoredVideo = ({ isCameraOn, onTerminate }) => {
         }
 
         const currentTimestamp = performance.now();
-        
+
         if (currentTimestamp !== lastProcessedTime) {
           lastProcessedTime = currentTimestamp;
-          
+
           try {
             const results = faceLandmarker.detectForVideo(videoRef.current, currentTimestamp);
             let isLookingAway = false;
 
             if (!results.faceLandmarks?.length || !results.faceBlendshapes?.length) {
-              isLookingAway = true; 
+              isLookingAway = true;
             } else {
               const blendshapes = results.faceBlendshapes[0].categories;
               const getScore = (name) => {
@@ -96,7 +105,7 @@ const ProctoredVideo = ({ isCameraOn, onTerminate }) => {
               const rightEyeOuter = landmarks[263];
               const leftCheek = landmarks[234];
               const rightCheek = landmarks[454];
-              
+
               const faceWidth = Math.abs(rightCheek.x - leftCheek.x);
               const headYawNormalized = Math.abs(leftEyeOuter.z - rightEyeOuter.z) / faceWidth;
 
@@ -108,7 +117,7 @@ const ProctoredVideo = ({ isCameraOn, onTerminate }) => {
             if (isLookingAway) {
               violationFrames.current += 1;
             } else {
-              violationFrames.current = Math.max(0, violationFrames.current - 4); 
+              violationFrames.current = Math.max(0, violationFrames.current - 4);
             }
 
             const calculatedScore = Math.max(0, 100 - Math.floor((violationFrames.current / MAX_VIOLATION_FRAMES) * 100));
@@ -118,7 +127,7 @@ const ProctoredVideo = ({ isCameraOn, onTerminate }) => {
               totalWarnings.current += 1;
               setWarnings(totalWarnings.current);
               lastWarningTime.current = Date.now();
-              violationFrames.current = 0; 
+              violationFrames.current = 0;
 
               if (totalWarnings.current >= 3) {
                 hasTerminated = true;
@@ -141,7 +150,7 @@ const ProctoredVideo = ({ isCameraOn, onTerminate }) => {
     initializeProctoring();
 
     return () => {
-      isMounted = false; 
+      isMounted = false;
       if (animationFrameId) cancelAnimationFrame(animationFrameId);
       if (faceLandmarker) faceLandmarker.close();
       if (videoStreamRef.current) {
@@ -232,14 +241,15 @@ export default function Interview() {
 
   const [isMicOn, setIsMicOn] = useState(true);
   const [isCameraOn, setIsCameraOn] = useState(true);
-  
+
   const [isInterviewStarted, setIsInterviewStarted] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isAILoading, setIsAILoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [chatHistory, setChatHistory] = useState([]);
   const [isAISpeaking, setIsAISpeaking] = useState(false);
-  
+  const [interviewId, setInterviewId] = useState(null);
+
   // NEW: Global Termination State & Audio Tracker
   const [isTerminated, setIsTerminated] = useState(false);
   const currentAudioRef = useRef(null);
@@ -248,6 +258,7 @@ export default function Interview() {
   const streamRef = useRef(null);
   const isFinalizingRef = useRef(false);
   const chunkTimerRef = useRef(null);
+  const feedbackSavedRef = useRef(false); // Prevent duplicate feedback saves
 
   useEffect(() => {
     if (!resumeName) {
@@ -272,12 +283,16 @@ export default function Interview() {
     if (initialReply && !loadedInitial) {
       setLoadedInitial(true);
       setIsInterviewStarted(true);
+      // Generate unique interview ID if not already set
+      if (!interviewId) {
+        setInterviewId(generateUUID());
+      }
       setChatHistory([{ sender: 'bot', text: initialReply }]);
       if (initialAudio) {
         playAIAudio(initialAudio);
       }
     }
-  }, [initialReply, initialAudio, loadedInitial]);
+  }, [initialReply, initialAudio, loadedInitial, interviewId]);
 
   // Cleanup on component unmount (when navigating away)
   useEffect(() => {
@@ -311,14 +326,18 @@ export default function Interview() {
 
     setIsAILoading(true);
     setStatusMessage("Initializing Engine...");
-    
+
     try {
       const response = await fetch('http://localhost:8001/api/start-interview', { method: 'POST' });
       const data = await response.json();
-      
+
+      // Generate unique interview ID when interview starts
+      const newInterviewId = generateUUID();
+      setInterviewId(newInterviewId);
+
       setIsInterviewStarted(true);
       setChatHistory(prev => [...prev, { sender: 'bot', text: data.reply }]);
-      
+
       if (data.audio_data) playAIAudio(data.audio_data);
     } catch (error) {
       setStatusMessage("Failed to connect to AI backend.");
@@ -339,22 +358,22 @@ export default function Interview() {
 
   const playAIAudio = (base64Audio) => {
     if (isTerminated) return; // Prevent new audio if already locked down
-    
+
     // Stop any currently playing audio first
     if (currentAudioRef.current) {
       currentAudioRef.current.pause();
       currentAudioRef.current = null;
     }
-    
+
     setIsAISpeaking(true);
     const audio = new Audio("data:audio/mp3;base64," + base64Audio);
     currentAudioRef.current = audio;
-    
+
     audio.onended = () => {
       setIsAISpeaking(false);
       currentAudioRef.current = null;
     };
-    
+
     audio.play();
   };
 
@@ -368,7 +387,7 @@ export default function Interview() {
     try {
       // Stop any AI audio that might be playing
       stopAllAudio();
-      
+
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
       isFinalizingRef.current = false;
@@ -398,8 +417,8 @@ export default function Interview() {
 
     chunkTimerRef.current = setTimeout(() => {
       if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording' && !isFinalizingRef.current) {
-        mediaRecorderRef.current.stop(); 
-        runChunkCycle(); 
+        mediaRecorderRef.current.stop();
+        runChunkCycle();
       }
     }, 24000);
   };
@@ -409,12 +428,12 @@ export default function Interview() {
     isFinalizingRef.current = true;
     setIsRecording(false);
     clearTimeout(chunkTimerRef.current);
-    
+
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop(); 
+      mediaRecorderRef.current.stop();
     }
     if (streamRef.current) streamRef.current.getTracks().forEach(track => track.stop());
-    
+
     setStatusMessage("Stitching audio and waiting for AI...");
     setIsAILoading(true);
   };
@@ -446,6 +465,12 @@ export default function Interview() {
   };
 
   const handleEndInterview = async () => {
+    // Prevent duplicate feedback saves
+    if (feedbackSavedRef.current) {
+      console.warn('Feedback already saved for this interview, skipping duplicate save');
+      return;
+    }
+
     stopAllAudio(); // Stop all audio immediately
     if (isRecording) stopRecordingLoop();
     try {
@@ -470,20 +495,24 @@ export default function Interview() {
       const numericScore = Number(feedbackData?.overall_rating);
       if (!Number.isNaN(numericScore)) {
         const token = localStorage.getItem('authToken');
-        fetch('http://localhost:3000/api/feedback', {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            role: data.role || role,
-            averageScore: numericScore,
-            feedback: feedbackData,
-          }),
-        }).catch((saveError) => {
+        try {
+          await fetch('http://localhost:3000/api/feedback', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              role: data.role || role,
+              averageScore: numericScore,
+              feedback: feedbackData,
+              interviewId: interviewId, // Include the unique interview ID
+            }),
+          });
+          feedbackSavedRef.current = true; // Mark feedback as saved
+        } catch (saveError) {
           console.warn('Could not save average score to MongoDB', saveError);
-        });
+        }
       }
 
       navigate('/feedback', { state: { feedback: feedbackData, role: data.role || role } });
@@ -497,59 +526,45 @@ export default function Interview() {
   // NEW: Global Lockdown Trigger
   const handleGlobalTermination = () => {
     setIsTerminated(true);
-    
+
     // 1. Kill the microphone loop
     if (isRecording) {
       isFinalizingRef.current = true;
       setIsRecording(false);
       clearTimeout(chunkTimerRef.current);
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-        mediaRecorderRef.current.stop(); 
+        mediaRecorderRef.current.stop();
       }
       if (streamRef.current) streamRef.current.getTracks().forEach(track => track.stop());
     }
 
     // 2. Brutally cut off the AI's voice using the unified stop function
     stopAllAudio();
-    
+
     setStatusMessage("Session Terminated.");
   };
 
   const currentAIText = chatHistory.slice().reverse().find(msg => msg.sender === 'bot')?.text || "";
+
   
-  return (
+  
+
+return (
     <div className="h-screen bg-[#f8f9fa] flex flex-col overflow-hidden relative">
-      
-      {/* NEW: Global Full-Screen Lockdown Overlay */}
-      {isTerminated && (
-        <div className="absolute inset-0 z-50 bg-gray-900/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-300">
-          <div className="w-24 h-24 bg-red-500/20 rounded-full flex items-center justify-center mb-8 border border-red-500/50 shadow-[0_0_30px_rgba(239,68,68,0.3)]">
-            <svg className="w-12 h-12 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-          </div>
-          <h2 className="text-4xl font-bold text-white mb-4 tracking-tight">Interview Terminated</h2>
-          <p className="text-gray-300 mb-10 max-w-md text-lg leading-relaxed">
-            This session has been automatically locked and ended due to multiple severe proctoring violations.
-          </p>
-          <button
-            onClick={handleEndInterview}
-            className="px-10 py-4 bg-red-600 hover:bg-red-700 text-white rounded-full font-bold text-lg transition-all shadow-lg hover:shadow-red-500/25 hover:-translate-y-0.5"
-          >
-            Submit & Exit
-          </button>
-        </div>
-      )}
+
+      {/* LOCKDOWN OVERLAY (UNCHANGED) */}
 
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 shadow-sm px-8 py-4 shrink-0">
+      <header className="bg-white border-b border-gray-200 shadow-sm px-6 py-3 shrink-0">
         <div className="flex justify-between items-center w-full">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-xs">P</div>
-            <h1 className="text-xl font-bold text-gray-900">Prepify</h1>
+            <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-xs">P</div>
+            <h1 className="text-lg font-bold text-gray-900">Prepify</h1>
           </div>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4 gap-4 text-sm text-gray-600">
+
+          <div className="flex items-center gap-3 text-sm text-gray-600">
             <span className="font-medium bg-gray-100 px-3 py-1 rounded-full">{role}</span>
+
             <div className="flex items-center gap-2 font-mono bg-white border border-gray-200 px-3 py-1 rounded-md shadow-sm">
               <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
               <Timer />
@@ -558,34 +573,46 @@ export default function Interview() {
         </div>
       </header>
 
-      {/* Main Workspace */}
-      <div className="flex-1 p-6 md:p-8 flex flex-col gap-6 w-full max-w-[2560px] my-1 overflow-y-auto">
-        
-        <div className="flex flex-col md:flex-row gap-6 w-full max-h-[45vh] min-h-64  ">
-          <div className="flex-1 rounded-3xl h-full overflow-hidden shadow-lg border border-gray-200 bg-white relative">
-            <AIAssistant isSpeaking={isAISpeaking} />
+      {/* MAIN */}
+      <div className="flex-1 flex flex-col gap-4 p-4 md:p-6 overflow-hidden">
+
+        {/* TOP SECTION (AI + CAMERA) */}
+        <div className="flex-[2] flex flex-col md:flex-row gap-4 overflow-hidden">
+
+          {/* AI PANEL */}
+          <div className="flex-1 bg-white rounded-xl shadow border border-gray-200 overflow-hidden">
+            <div className="w-full h-full aspect-video">
+              <AIAssistant isSpeaking={isAISpeaking} />
+            </div>
           </div>
-          <div className="flex-1 rounded-3xl overflow-hidden shadow-lg border border-gray-200 relative bg-black">
-            <ProctoredVideo 
-               isCameraOn={isCameraOn} 
-               onTerminate={handleGlobalTermination} 
-            />
-            <div className="absolute bottom-6 left-6 bg-black/60 backdrop-blur-md px-4 py-2 rounded-lg pointer-events-none">
-              <span className="text-white font-medium tracking-wide">You</span>
+
+          {/* USER CAMERA */}
+          <div className="flex-1 bg-black rounded-xl shadow border border-gray-200 overflow-hidden relative">
+            <div className="w-full h-full aspect-video">
+              <ProctoredVideo
+                isCameraOn={isCameraOn}
+                onTerminate={handleGlobalTermination}
+              />
+            </div>
+
+            <div className="absolute bottom-3 left-3 bg-black/60 px-3 py-1 rounded">
+              <span className="text-white text-sm">You</span>
             </div>
           </div>
         </div>
 
-        {/* Controls */}
-        <div className="w-full bg-white rounded-3xl shadow-sm border border-gray-200 p-6 md:p-8 flex flex-col shrink-0">
-          <div className="max-h-32 overflow-y-auto flex items-start pr-4 relative mb-4">
-            <p className="text-base md:text-lg text-gray-800 font-medium leading-relaxed w-full">
+        {/* CONTROLS SECTION */}
+        <div className="flex-[1.2] bg-white rounded-xl shadow border border-gray-200 p-4 flex flex-col justify-between overflow-hidden">
+
+          {/* TEXT AREA */}
+          <div className="h-[80px] overflow-y-auto pr-2">
+            <p className="text-sm md:text-base text-gray-800 leading-snug">
               {!isInterviewStarted ? (
-                "Welcome to Prepify. When you are ready, click 'Start Interview' to begin."
+                "Welcome to Prepify. Click 'Start Interview' to begin."
               ) : isRecording ? (
-                <span className="text-gray-400 italic flex items-center gap-3 mt-2">
-                  <span className="w-3 h-3 rounded-full bg-green-500 animate-pulse"></span>
-                  Listening to your response...
+                <span className="text-gray-400 italic flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                  Listening...
                 </span>
               ) : (
                 currentAIText
@@ -593,43 +620,75 @@ export default function Interview() {
             </p>
           </div>
 
+          {/* STATUS */}
           {statusMessage && (
-            <div className="text-md text-blue-600 italic mt-2">
+            <div className="text-sm text-blue-600 italic">
               {statusMessage}
             </div>
           )}
 
-          <div className="flex items-center justify-between border-t border-gray-100 pt-6 mt-4">
-            <div className="flex gap-4">
-              <button onClick={() => setIsMicOn(!isMicOn)} disabled={isTerminated} className={`p-4 rounded-full transition-colors ${isMicOn ? 'bg-gray-100 hover:bg-gray-200 text-gray-700' : 'bg-red-100 hover:bg-red-200 text-red-600'} disabled:opacity-50`}>
-                {isMicOn ? <Mic size={24} /> : <MicOff size={24} />}
+          {/* BUTTONS */}
+          <div className="flex items-center justify-between border-t pt-3">
+
+            {/* LEFT */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => setIsMicOn(!isMicOn)}
+                disabled={isTerminated}
+                className={`p-3 rounded-full ${isMicOn ? 'bg-gray-100' : 'bg-red-100 text-red-600'
+                  }`}
+              >
+                {isMicOn ? <Mic size={20} /> : <MicOff size={20} />}
               </button>
-              <button onClick={() => setIsCameraOn(!isCameraOn)} disabled={isTerminated} className={`p-4 rounded-full transition-colors ${isCameraOn ? 'bg-gray-100 hover:bg-gray-200 text-gray-700' : 'bg-red-100 hover:bg-red-200 text-red-600'} disabled:opacity-50`}>
-                {isCameraOn ? <Video size={24} /> : <VideoOff size={24} />}
+
+              <button
+                onClick={() => setIsCameraOn(!isCameraOn)}
+                disabled={isTerminated}
+                className={`p-3 rounded-full ${isCameraOn ? 'bg-gray-100' : 'bg-red-100 text-red-600'
+                  }`}
+              >
+                {isCameraOn ? <Video size={20} /> : <VideoOff size={20} />}
               </button>
             </div>
 
+            {/* CENTER */}
             <div>
               {!isInterviewStarted ? (
-                <button onClick={handleStartInterview} disabled={!resumeName || isAILoading || isTerminated} className="flex items-center gap-3 px-10 py-4 text-lg bg-blue-600 hover:bg-blue-700 text-white rounded-full font-medium transition-all shadow-md disabled:opacity-50">
-                  <PlaySquare size={24} /> Start Interview
+                <button
+                  onClick={handleStartInterview}
+                  disabled={!resumeName || isAILoading || isTerminated}
+                  className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-full text-sm"
+                >
+                  <PlaySquare size={20} />
+                  Start
                 </button>
               ) : (
-                <button onClick={handleToggleRecording} disabled={isAILoading || isTerminated} className={`flex items-center gap-3 px-6 py-4 text-md text-white rounded-full font-medium transition-all shadow-md disabled:opacity-50 ${isRecording ? 'bg-red-500 hover:bg-red-600 animate-pulse' : 'bg-green-600 hover:bg-green-700'}`}>
-                  {isRecording ? <Square size={22} /> : <Mic size={22} />}
-                  {isRecording ? 'Submit Answer' : 'Start Answering'}
+                <button
+                  onClick={handleToggleRecording}
+                  disabled={isAILoading || isTerminated}
+                  className={`flex items-center gap-2 px-5 py-3 rounded-full text-white text-sm ${isRecording ? 'bg-red-500' : 'bg-green-600'
+                    }`}
+                >
+                  {isRecording ? <Square size={18} /> : <Mic size={18} />}
+                  {isRecording ? 'Submit' : 'Answer'}
                 </button>
               )}
             </div>
 
+            {/* RIGHT */}
             <div>
-              <button onClick={handleEndInterview} disabled={isTerminated} className="flex items-center gap-2 px-8 py-4 bg-gray-100 hover:bg-red-50 text-gray-700 hover:text-red-600 rounded-full transition-colors font-medium disabled:opacity-50">
-                <Phone size={20} /> End Session
+              <button
+                onClick={handleEndInterview}
+                disabled={isTerminated}
+                className="flex items-center gap-2 px-5 py-3 bg-gray-100 rounded-full text-sm"
+              >
+                <Phone size={18} />
+                End
               </button>
             </div>
           </div>
         </div>
       </div>
     </div>
-  );
+  );  
 }

@@ -28,8 +28,8 @@ router.get('/stats', protect, async (req, res) => {
             });
         }
 
-        // Calculate stats
-        const totalInterviews = feedbacks.length;
+        // Calculate stats - count unique interviews (by interviewId)
+        const totalInterviews = feedbacks.length; // Each feedback document now represents ONE unique interview
         const averageScore = Math.round(
             feedbacks.reduce((sum, f) => sum + (f.averageScore || 0), 0) / totalInterviews
         );

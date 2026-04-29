@@ -7,11 +7,12 @@ const Feedback = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [feedback, setFeedback] = useState(null);
-  const [role, setRole] = useState('Interview');
-  const [loading, setLoading] = useState(true);
-  const [savingScore, setSavingScore] = useState(false);
+  const [role, setRole] = useState('Interview');  
 
   useEffect(() => {
+    console.log('Feedback component mounted');
+    console.log('Location state:', location.state);
+    
     const savedState = sessionStorage.getItem('prepify_feedback');
     const persisted = savedState ? JSON.parse(savedState) : null;
 
@@ -23,9 +24,6 @@ const Feedback = () => {
         'prepify_feedback',
         JSON.stringify({ feedback: location.state.feedback, role: location.state.role || 'Interview' })
       );
-      
-      // Auto-save score to backend
-      saveScoreToBackend(location.state.feedback, location.state.role || 'Interview');
     } else if (persisted?.feedback) {
       console.log('Feedback from sessionStorage:', persisted.feedback);
       setFeedback(persisted.feedback);
@@ -33,46 +31,7 @@ const Feedback = () => {
     } else {
       console.warn('No feedback found in state or sessionStorage');
     }
-    setLoading(false);
   }, [location.state]);
-
-  const saveScoreToBackend = async (feedbackData, interviewRole) => {
-    try {
-      setSavingScore(true);
-      const token = localStorage.getItem('authToken');
-
-      if (!token) {
-        console.warn('No auth token found. Cannot save score.');
-        return;
-      }
-
-      const score = feedbackData?.overall_rating || 0;
-
-      const response = await fetch('http://localhost:3000/api/feedback', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          role: interviewRole,
-          averageScore: score,
-          feedback: feedbackData
-        })
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        console.log('Score saved successfully:', result);
-      } else {
-        console.error('Failed to save score. Status:', response.status);
-      }
-    } catch (error) {
-      console.error('Error saving score to backend:', error);
-    } finally {
-      setSavingScore(false);
-    }
-  };
 
   const downloadPDF = () => {
     try {
@@ -214,42 +173,33 @@ const Feedback = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="p-6">
-        <h1 className="text-2xl font-bold text-gray-900">Interview Feedback</h1>
-        <p className="mt-4 text-gray-600">Loading feedback...</p>
-      </div>
-    );
-  }
-
   if (!feedback) {
     return (
-      <div className="p-6">
-        <h1 className="text-2xl font-bold text-gray-900">Interview Feedback</h1>
-        <p className="mt-4 text-gray-600">We could not load the feedback for this interview.</p>
-        <button
-          onClick={() => navigate('/dashboard')}
-          className="mt-6 rounded-full bg-blue-600 px-5 py-3 text-white hover:bg-blue-700 hover:cursor-pointer"
-        >
-          Return to dashboard
-        </button>
+      <div className="p-6 bg-gray-50 min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-700 font-medium">Loading your feedback...</p>
+        </div>
       </div>
     );
   }
 
   const questions = Array.isArray(feedback.question_feedback) ? feedback.question_feedback : [];
 
+  // Show loading state if feedback is not ready
+  if (!feedback) {
+    return (
+      <div className="p-6 bg-gray-50 min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-700 font-medium">Loading your feedback...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-6 bg-gray-50 min-h-screen">
-      {/* Score Save Status */}
-      {savingScore && (
-        <div className="rounded-lg bg-blue-50 border border-blue-200 p-4 flex items-center gap-3">
-          <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-          <span className="text-sm font-medium text-blue-700">Saving your score...</span>
-        </div>
-      )}
-
       {/* Important: Download Warning */}
       <div className="rounded-2xl bg-orange-50 border-2 border-orange-300 p-5 flex items-start gap-4 shadow-sm">
         <AlertCircle className="w-6 h-6 text-orange-600 flex-shrink-0 mt-0.5" />

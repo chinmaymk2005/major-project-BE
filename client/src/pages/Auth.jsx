@@ -99,7 +99,10 @@ export default function Auth() {
         } finally {
             setLoading(false);
         }
-    };
+
+
+    }; 
+    
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-white via-orange-50 to-white flex items-center justify-center px-4 py-12">
@@ -158,6 +161,7 @@ export default function Auth() {
                                     <input
                                         type="text"
                                         name="name"
+                                        autoComplete="off"
                                         value={formData.name}
                                         onChange={handleInputChange}
                                         placeholder="John Doe"
@@ -177,6 +181,7 @@ export default function Auth() {
                                 <input
                                     type="email"
                                     name="email"
+                                    autoComplete="off"
                                     value={formData.email}
                                     onChange={handleInputChange}
                                     placeholder="you@example.com"
@@ -200,14 +205,11 @@ export default function Auth() {
                                     placeholder="Software Engineer, Data Scientist, etc."
                                     className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 transition-all"
                                 >
-                                    <option value="">Select target Interview</option>
-                                    <option value="Software Engineer">Software Engineer</option>                                    
-                                    <option value="Software Developer">Software Developer</option>                                    
-                                    <option value="chartered accountant">chartered accountant (CA) </option>                                    
-                                    <option value="UPSC / MPSC">UPSC / MPSC</option>                                                                        
-                                    <option value="CEO">CEO</option>                                                                                                            
-                                    <option value="Product Manager">Product Manager</option>
-                                    <option value="Other">Other</option>
+                                    <option value="">Select Target Interview</option>                                                                    
+                                    <option value="Software Developer">Software Developer (SDE)</option>                                                                        
+                                    <option value="Machine Learning Engineer">Machine Learning Engineer</option>
+                                    <option value="Frontend Developer">Frontend Developer</option>
+                                    <option value="Backend Developer">Backend Developer</option>
                                 </select>
                             </div>
                         </div>
@@ -250,6 +252,7 @@ export default function Auth() {
                                 <input
                                     type={showPassword ? "text" : "password"}
                                     name="password"
+                                    autoComplete="new-password"
                                     value={formData.password}
                                     onChange={handleInputChange}
                                     placeholder="••••••••"
@@ -280,6 +283,7 @@ export default function Auth() {
                                     <input
                                         type={showPassword ? "text" : "password"}
                                         name="confirmPassword"
+                                        autoComplete="new-password"
                                         value={formData.confirmPassword}
                                         onChange={handleInputChange}
                                         placeholder="••••••••"
@@ -332,10 +336,7 @@ export default function Auth() {
                     </div>
 
                     {/* Google Auth Button */}
-                    <button onClick={() => window.open("https://accounts.google.com", "_blank")} className="w-full hover:cursor-pointer py-2.5 border-2 border-gray-300 hover:border-orange-300 text-gray-700 font-medium rounded-lg transition-all duration-300 flex items-center justify-center gap-2 hover:bg-orange-50">                                                
-                        Continue with Google
-                    </button>
-
+                    
                     {/* Footer Text */}
                     <p className="text-center text-sm text-gray-600 mt-6">
                         {isLogin ? "Don't have an account? " : "Already have an account? "}
