@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { Download, AlertCircle } from 'lucide-react';
+import jsPDF from 'jspdf';
 
 const Feedback = () => {
   const location = useLocation();
@@ -72,6 +74,146 @@ const Feedback = () => {
     }
   };
 
+  const downloadPDF = () => {
+    try {
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      let yPosition = 20;
+      const pageHeight = pdf.internal.pageSize.height;
+      const margin = 15;
+      const maxWidth = 180;
+
+      // Title
+      pdf.setFontSize(24);
+      pdf.setFont(undefined, 'bold');
+      pdf.text('Interview Feedback Report', margin, yPosition);
+      yPosition += 15;
+
+      // Role & Date
+      pdf.setFontSize(10);
+      pdf.setFont(undefined, 'normal');
+      pdf.text(`Role: ${role}`, margin, yPosition);
+      yPosition += 8;
+      pdf.text(`Date: ${new Date().toLocaleDateString()}`, margin, yPosition);
+      yPosition += 12;
+
+      // Overall Rating Box
+      pdf.setFillColor(37, 99, 235); // Blue
+      pdf.rect(margin, yPosition, maxWidth, 25, 'F');
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFont(undefined, 'bold');
+      pdf.setFontSize(12);
+      pdf.text('OVERALL RATING', margin + 5, yPosition + 8);
+      pdf.setFontSize(20);
+      pdf.text(`${feedback.overall_rating ?? 'N/A'} / 10`, margin + 5, yPosition + 18);
+      pdf.setTextColor(0, 0, 0);
+      yPosition += 32;
+
+      // Overall Comments
+      if (feedback.overall_comments) {
+        pdf.setFont(undefined, 'bold');
+        pdf.setFontSize(11);
+        pdf.text('Overall Comments:', margin, yPosition);
+        yPosition += 8;
+        pdf.setFont(undefined, 'normal');
+        pdf.setFontSize(10);
+        const commentLines = pdf.splitTextToSize(feedback.overall_comments, maxWidth);
+        pdf.text(commentLines, margin, yPosition);
+        yPosition += commentLines.length * 5 + 8;
+      }
+
+      // Question-wise Feedback
+      const questions = Array.isArray(feedback.question_feedback) ? feedback.question_feedback : [];
+      
+      if (questions.length > 0) {
+        pdf.setFont(undefined, 'bold');
+        pdf.setFontSize(12);
+        pdf.text('Question-Wise Breakdown', margin, yPosition);
+        yPosition += 10;
+
+        questions.forEach((item, index) => {
+          // Check if new page needed
+          if (yPosition > pageHeight - 40) {
+            pdf.addPage();
+            yPosition = 20;
+          }
+
+          // Question number and rating
+          pdf.setFillColor(240, 240, 240);
+          pdf.rect(margin, yPosition, maxWidth, 8, 'F');
+          pdf.setFont(undefined, 'bold');
+          pdf.setFontSize(10);
+          pdf.text(`Question ${index + 1}`, margin + 3, yPosition + 6);
+          pdf.text(`Rating: ${item.rating ?? 'N/A'}/10`, margin + 140, yPosition + 6);
+          yPosition += 12;
+
+          // Question text
+          pdf.setFont(undefined, 'bold');
+          pdf.setFontSize(9);
+          pdf.setTextColor(37, 99, 235);
+          pdf.text('Question:', margin, yPosition);
+          yPosition += 5;
+          pdf.setFont(undefined, 'normal');
+          pdf.setTextColor(0, 0, 0);
+          pdf.setFontSize(9);
+          const qLines = pdf.splitTextToSize(item.question || 'No question text', maxWidth - 5);
+          pdf.text(qLines, margin + 5, yPosition);
+          yPosition += qLines.length * 4 + 3;
+
+          // Your Answer
+          if (yPosition > pageHeight - 40) {
+            pdf.addPage();
+            yPosition = 20;
+          }
+          pdf.setFont(undefined, 'bold');
+          pdf.setTextColor(34, 197, 94);
+          pdf.text('Your Answer:', margin, yPosition);
+          yPosition += 5;
+          pdf.setFont(undefined, 'normal');
+          pdf.setTextColor(0, 0, 0);
+          const aLines = pdf.splitTextToSize(item.your_answer || 'No answer recorded', maxWidth - 5);
+          pdf.text(aLines, margin + 5, yPosition);
+          yPosition += aLines.length * 4 + 3;
+
+          // Expected Answer
+          if (yPosition > pageHeight - 40) {
+            pdf.addPage();
+            yPosition = 20;
+          }
+          pdf.setFont(undefined, 'bold');
+          pdf.setTextColor(217, 119, 6);
+          pdf.text('Expected Answer:', margin, yPosition);
+          yPosition += 5;
+          pdf.setFont(undefined, 'normal');
+          pdf.setTextColor(0, 0, 0);
+          const eLines = pdf.splitTextToSize(item.expected_answer || 'No expected answer', maxWidth - 5);
+          pdf.text(eLines, margin + 5, yPosition);
+          yPosition += eLines.length * 4 + 3;
+
+          // Improvements
+          if (yPosition > pageHeight - 40) {
+            pdf.addPage();
+            yPosition = 20;
+          }
+          pdf.setFont(undefined, 'bold');
+          pdf.setTextColor(168, 85, 247);
+          pdf.text('Improvements:', margin, yPosition);
+          yPosition += 5;
+          pdf.setFont(undefined, 'normal');
+          pdf.setTextColor(0, 0, 0);
+          const iLines = pdf.splitTextToSize(item.improvements || 'No improvement advice', maxWidth - 5);
+          pdf.text(iLines, margin + 5, yPosition);
+          yPosition += iLines.length * 4 + 8;
+        });
+      }
+
+      // Download      
+      pdf.save(`Prepify_Interview_Feedback_${new Date().toLocaleDateString()}.pdf`);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Failed to generate PDF. Please try again.');
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-6">
@@ -88,7 +230,7 @@ const Feedback = () => {
         <p className="mt-4 text-gray-600">We could not load the feedback for this interview.</p>
         <button
           onClick={() => navigate('/dashboard')}
-          className="mt-6 rounded-full bg-blue-600 px-5 py-3 text-white hover:bg-blue-700"
+          className="mt-6 rounded-full bg-blue-600 px-5 py-3 text-white hover:bg-blue-700 hover:cursor-pointer"
         >
           Return to dashboard
         </button>
@@ -107,6 +249,17 @@ const Feedback = () => {
           <span className="text-sm font-medium text-blue-700">Saving your score...</span>
         </div>
       )}
+
+      {/* Important: Download Warning */}
+      <div className="rounded-2xl bg-orange-50 border-2 border-orange-300 p-5 flex items-start gap-4 shadow-sm">
+        <AlertCircle className="w-6 h-6 text-orange-600 flex-shrink-0 mt-0.5" />
+        <div className="flex-1">
+          <h3 className="font-bold text-orange-900 text-sm md:text-base">📥 Important: Download Your Report</h3>
+          <p className="text-orange-800 text-xs md:text-sm mt-2 leading-relaxed">
+            Please download your feedback report now to keep a copy on your device. Once you leave this page, you can't access it so having a local copy is recommended for your records.
+          </p>
+        </div>
+      </div>
 
       {/* Overall Results Card */}
       <div className="rounded-3xl border border-gray-200 bg-white p-8 shadow-sm">
@@ -179,16 +332,23 @@ const Feedback = () => {
       )}
 
       {/* Footer Actions */}
-      <div className="flex gap-4 mt-8">
+      <div className="flex gap-4 mt-8 flex-col md:flex-row">
+        <button
+          onClick={downloadPDF}
+          className="flex items-center justify-center gap-2 rounded-full bg-green-600 hover:bg-green-700 px-6 py-3 text-white font-medium transition-colors shadow-md hover:shadow-lg hover:cursor-pointer"
+        >
+          <Download size={20} />
+          Download Report (PDF)
+        </button>
         <button
           onClick={() => navigate('/dashboard')}
-          className="flex-1 rounded-full bg-gray-600 hover:bg-gray-700 px-6 py-3 text-white font-medium transition-colors"
+          className="flex-1 rounded-full bg-gray-600 hover:bg-gray-700 px-6 py-3 text-white font-medium transition-colors hover:cursor-pointer"
         >
           Return to Dashboard
         </button>
         <button
           onClick={() => navigate('/interview')}
-          className="flex-1 rounded-full bg-blue-600 hover:bg-blue-700 px-6 py-3 text-white font-medium transition-colors"
+          className="flex-1 rounded-full bg-blue-600 hover:bg-blue-700 px-6 py-3 text-white font-medium transition-colors hover:cursor-pointer"
         >
           Start Another Interview
         </button>

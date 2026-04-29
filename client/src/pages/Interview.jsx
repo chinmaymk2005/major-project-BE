@@ -559,10 +559,10 @@ export default function Interview() {
       </header>
 
       {/* Main Workspace */}
-      <div className="flex-1 p-4 md:p-8 flex flex-col gap-6 w-full max-w-[2560px] mx-auto min-h-0">
+      <div className="flex-1 p-6 md:p-8 flex flex-col gap-6 w-full max-w-[2560px] my-1 overflow-y-auto">
         
-        <div className="flex-1 flex flex-col md:flex-row gap-6 w-full min-h-0">
-          <div className="flex-1 rounded-3xl overflow-hidden shadow-lg border border-gray-200 bg-white relative">
+        <div className="flex flex-col md:flex-row gap-6 w-full max-h-[45vh] min-h-64  ">
+          <div className="flex-1 rounded-3xl h-full overflow-hidden shadow-lg border border-gray-200 bg-white relative">
             <AIAssistant isSpeaking={isAISpeaking} />
           </div>
           <div className="flex-1 rounded-3xl overflow-hidden shadow-lg border border-gray-200 relative bg-black">
@@ -578,8 +578,8 @@ export default function Interview() {
 
         {/* Controls */}
         <div className="w-full bg-white rounded-3xl shadow-sm border border-gray-200 p-6 md:p-8 flex flex-col shrink-0">
-          <div className="h-[100px] overflow-y-auto flex items-start pr-4 relative">
-            <p className="text-xl md:text-2xl text-gray-800 font-medium leading-relaxed w-full">
+          <div className="max-h-32 overflow-y-auto flex items-start pr-4 relative mb-4">
+            <p className="text-base md:text-lg text-gray-800 font-medium leading-relaxed w-full">
               {!isInterviewStarted ? (
                 "Welcome to Prepify. When you are ready, click 'Start Interview' to begin."
               ) : isRecording ? (
@@ -594,7 +594,7 @@ export default function Interview() {
           </div>
 
           {statusMessage && (
-            <div className="text-sm text-blue-600 italic mt-2">
+            <div className="text-md text-blue-600 italic mt-2">
               {statusMessage}
             </div>
           )}
@@ -615,8 +615,8 @@ export default function Interview() {
                   <PlaySquare size={24} /> Start Interview
                 </button>
               ) : (
-                <button onClick={handleToggleRecording} disabled={isAILoading || isTerminated} className={`flex items-center gap-3 px-10 py-4 text-lg text-white rounded-full font-medium transition-all shadow-md disabled:opacity-50 ${isRecording ? 'bg-red-500 hover:bg-red-600 animate-pulse' : 'bg-green-600 hover:bg-green-700'}`}>
-                  {isRecording ? <Square size={24} /> : <Mic size={24} />}
+                <button onClick={handleToggleRecording} disabled={isAILoading || isTerminated} className={`flex items-center gap-3 px-6 py-4 text-md text-white rounded-full font-medium transition-all shadow-md disabled:opacity-50 ${isRecording ? 'bg-red-500 hover:bg-red-600 animate-pulse' : 'bg-green-600 hover:bg-green-700'}`}>
+                  {isRecording ? <Square size={22} /> : <Mic size={22} />}
                   {isRecording ? 'Submit Answer' : 'Start Answering'}
                 </button>
               )}
